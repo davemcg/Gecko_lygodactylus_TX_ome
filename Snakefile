@@ -37,8 +37,9 @@ rule downloadGencode:
     output:refGenome, refGFF
     shell:
         '''
-        wget -O - {config[refGenome_url]} | gunzip -c > {refGenome}
+        wget -O - {config[refGenome_url]} | gunzip -c > {refGenome}.tmp
         wget -O - {config[refGFF_url]} | gunzip -c > {refGFF}
+        python3 scripts/clean_genome_names.py {refGenome}.tmp {refGenome}
         '''
 
 rule build_STARindex:
@@ -48,7 +49,7 @@ rule build_STARindex:
         '''
         module load STAR
         mkdir -p ref/STARindex
-        STAR --runThreadN 16 --runMode genomeGenerate --genomeDir {output[0]} --genomeFastaFiles {refGenome} \
+        STAR --runThreadN 4 --runMode genomeGenerate --genomeDir {output[0]} --genomeFastaFiles {refGenome} --genomeChrBinNbits 9 \
          --sjdbGTFtagExonParentTranscript transcript_id --sjdbGTFfile {refGFF} --sjdbOverhang 100
         '''
 
