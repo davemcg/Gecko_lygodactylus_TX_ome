@@ -1,7 +1,7 @@
 '''
 Snakefile for gekko transcfiptome
 -currently only goes to building gtf part, need to add blast and building annotation
--need to get the refernce still
+
 
 '''
 
@@ -37,8 +37,8 @@ rule downloadGencode:
     output:refGenome, refGFF
     shell:
         '''
-        wget {config[refGenome_url]} | gunzip -c > {refGenome}
-        wget {config[refGFF_url]} | gunzip -c > {refGFF}
+        wget -O - {config[refGenome_url]} | gunzip -c > {refGenome}
+        wget -O - {config[refGFF_url]} | gunzip -c > {refGFF}
         '''
 
 rule build_STARindex:
