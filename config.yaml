@@ -1,0 +1,5 @@
+refGenome_url: 'ftp://ftp.ncbi.nih.gov/genomes/Gekko_japonicus/CHR_Un/146911_ref_Gekko_japonicus_V1.1_chrUn.fa.gz'
+sampleFile: 'sampleTable.txt'
+refGFF_url: 'ftp://ftp.ncbi.nih.gov/genomes/Gekko_japonicus/GFF/ref_Gekko_japonicus_V1.1_scaffolds.gff3.gz'
+refGenome: 'ref/japan_gekko_genome.fa'
+refGFF: 'ref/japan_gekko_gff.gff3'

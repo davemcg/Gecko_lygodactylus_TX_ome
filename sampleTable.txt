@@ -1,0 +1,15 @@
+272_Left_nasal	fastq_files/RL11_272_Left-4_11-08-13_GGCTAC_L003_R1_001.fastq.gz,fastq_files/RL11_272_Left-4_11-08-13_GGCTAC_L003_R2_001.fastq.gz	nasal
+272_Left_ventral	fastq_files/RL12_272_Left-6_11-08-13_CTTGTA_L003_R1_001.fastq.gz,fastq_files/RL12_272_Left-6_11-08-13_CTTGTA_L003_R2_001.fastq.gz	ventral
+271_Left_fovea	fastq_files/RL1_271_Left-1_11-08-13_ATCACG_L001_R1_001.fastq.gz,fastq_files/RL1_271_Left-1_11-08-13_ATCACG_L001_R2_001.fastq.gz	fovea
+271_Left_dorsal	fastq_files/RL2_271_Left-2_11-08-13_CGATGT_L001_R1_001.fastq.gz,fastq_files/RL2_271_Left-2_11-08-13_CGATGT_L001_R2_001.fastq.gz	dorsal
+266_Right_fovea	fastq_files/RL29_266_Right-1_11-08-13_AGTCAA_L004_R1_001.fastq.gz,fastq_files/RL29_266_Right-1_11-08-13_AGTCAA_L004_R2_001.fastq.gz	fovea
+266_Right_dorsal	fastq_files/RL30_266_Right-2_11-08-13_AGTTCC_L004_R1_001.fastq.gz,fastq_files/RL30_266_Right-2_11-08-13_AGTTCC_L004_R2_001.fastq.gz	dorsal
+266_Right_nasal	fastq_files/RL31_266_Right-4_11-08-13_ATGTCA_L004_R1_001.fastq.gz,fastq_files/RL31_266_Right-4_11-08-13_ATGTCA_L004_R2_001.fastq.gz	nasal
+266_Right_ventral	fastq_files/RL32_266_Right-6_11-08-13_CCGTCC_L004_R1_001.fastq.gz,fastq_files/RL32_266_Right-6_11-08-13_CCGTCC_L004_R2_001.fastq.gz	ventral
+271_Left_nasal	fastq_files/RL3_271_Left-4_11-08-13_TTAGGC_L001_R1_001.fastq.gz,fastq_files/RL3_271_Left-4_11-08-13_TTAGGC_L001_R2_001.fastq.gz	nasal
+271_Left_ventral	fastq_files/RL4_271_Left-6_11-08-13_TGACCA_L001_R1_001.fastq.gz,fastq_files/RL4_271_Left-6_11-08-13_TGACCA_L001_R2_001.fastq.gz	ventral
+271_Right_fovea	fastq_files/RL5_271_Right-1_11-08-13_ACAGTG_L002_R1_001.fastq.gz,fastq_files/RL5_271_Right-1_11-08-13_ACAGTG_L002_R2_001.fastq.gz	fovea
+271_Right_dorsal	fastq_files/RL6_271_Right-2_11-08-13_GCCAAT_L002_R1_001.fastq.gz,fastq_files/RL6_271_Right-2_11-08-13_GCCAAT_L002_R2_001.fastq.gz	dorsal
+271_Right_nasal	fastq_files/RL7_271_Right-4_11-08-13_CAGATC_L002_R1_001.fastq.gz,fastq_files/RL7_271_Right-4_11-08-13_CAGATC_L002_R2_001.fastq.gz	nasal
+271_Right_ventral	fastq_files/RL8_271_Right-6_11-08-13_ACTTGA_L002_R1_001.fastq.gz,fastq_files/RL8_271_Right-6_11-08-13_ACTTGA_L002_R2_001.fastq.gz	ventral
+272_Left_fovea	fastq_files/RL9_272_Left-1_11-08-13_GATCAG_L003_R1_001.fastq.gz,fastq_files/RL9_272_Left-1_11-08-13_GATCAG_L003_R2_001.fastq.gz	fovea
