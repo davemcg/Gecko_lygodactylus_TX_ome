@@ -1,9 +1,9 @@
 {
 	"__default__" :
 	{
-		"partition" : "quick",
+		"partition" : "norm",
 		"time" : "4:00:00",
-		"mem" : "8g",
+		"mem" : "16g",
 		"cpus-per-task" : "1",
 		"output"  : "00log/{rule}_{wildcards}.out",
 		"error" : "00log/{rule}_{wildcards}.err",
@@ -34,8 +34,8 @@
 	"run_STAR_alignment" :
 	{
 		"partition" : "norm",
-		"time" : "12:00:00",
-		"cpus-per-task" : "8",
+		"time" : "24:00:00",
+		"cpus-per-task" : "16",
 		"mem" : "48g",
 		"output"  : "00log/{rule}_{wildcards}.out",
 		"error" : "00log/{rule}_{wildcards}.err",

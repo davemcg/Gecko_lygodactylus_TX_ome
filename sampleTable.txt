@@ -13,3 +13,4 @@
 271_Right_nasal	fastq_files/RL7_271_Right-4_11-08-13_CAGATC_L002_R1_001.fastq.gz,fastq_files/RL7_271_Right-4_11-08-13_CAGATC_L002_R2_001.fastq.gz	nasal
 271_Right_ventral	fastq_files/RL8_271_Right-6_11-08-13_ACTTGA_L002_R1_001.fastq.gz,fastq_files/RL8_271_Right-6_11-08-13_ACTTGA_L002_R2_001.fastq.gz	ventral
 272_Left_fovea	fastq_files/RL9_272_Left-1_11-08-13_GATCAG_L003_R1_001.fastq.gz,fastq_files/RL9_272_Left-1_11-08-13_GATCAG_L003_R2_001.fastq.gz	fovea
+272_Left_dorsal	fastq_files/RL10_272_Left-2_11-08-13_TAGCTT_L003_R1_001.fastq.gz,fastq_files/RL10_272_Left-2_11-08-13_TAGCTT_L003_R2_001.fastq.gz	dorsal
