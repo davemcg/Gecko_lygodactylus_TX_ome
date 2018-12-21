@@ -4,6 +4,9 @@ Snakefile for gekko transcfiptome
 
 
 '''
+import string
+from itertools import combinations_with_replacement
+
 
 def readSampleFile(samplefile):
     # returns a dictionary of dictionaries where first dict key is sample id and second dict key are sample  properties
@@ -14,6 +17,11 @@ def readSampleFile(samplefile):
             res[info[0]]={'path':info[1].split(','),'type':info[2].strip('\n')}
     return(res)
 
+def make_chunk_input(stem):
+    alphbet_pfx=list(combinations_with_replacement(list(string.ascii_lowercase),2))
+    paths=[stem + ''.join(i) for i in alphbet_pfx]
+    paths.sort()
+    return(paths[0:100])
 
 configfile:'config.yaml'
 sample_dict=readSampleFile(config['sampleFile'])# sampleID:dict{path,paired,metadata}
@@ -25,13 +33,10 @@ refGFF= config['refGFF']
 
 
 rule all:
-    input: 'ref/gekko.combined.gtf', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names)
+    input: 'ref/gekko.combined.gtf', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names),'ref/all_blastn.tsv','ref/all_blastp.tsv'
     #,'smoothed_filtered_tpms.csv'
 '''
-****PART 1**** download files
--still need to add missing fastq files
--gffread needs indexed fasta
--need to add versioning of tools to yaml
+****PART 1****  get annotation run alignment
 '''
 rule downloadGencode:
     output:refGenome, refGFF
@@ -85,7 +90,7 @@ rule run_stringtie:
 '''
 ---making gtfs
 -gffcompare give good stats but does no filtering, bit st --merge auto filters (using transcript w min 1 tpm in 1 sample)
-
+-remember to escape braces for non variable use, like awk
 '''
 rule merge_gtfs_gffcomp:
     #this could be split into multiple rules, but its a lot easier to string it together
@@ -117,7 +122,57 @@ rule extract_tx_seqs:
     output: 'ref/gekko_tx.fa'
     shell:
         '''
-        ./gffread/gffread -w {output[0]} -g {refGenome} {input[0]}
+        module load bedtools
+        awk '$3=="transcript"' {input[0]} |\
+        awk '{{gsub(/\"|\;/,"")}}1' - |\
+        awk '{{print $1,$4,$5,$10,$6,$7}}' OFS='\t' - |\
+        bedtools getfasta -name -fi {refGenome} -bed - -fo {output}
+        '''
+rule make_blast_bundles:
+    input: 'ref/gekko_st.gtf'
+    output: make_chunk_input('blast_bed_chunks/nx_tx.')
+    shell:
+        '''
+        awk '$3=="transcript"' {input[0]} |\
+        awk '{{gsub(/\"|\;/,"")}}1' - |\
+        grep -v gene_name - |\
+        awk '{{print $1,$4,$5,$10,$6,$7}}' OFS='\t' - > /tmp/tmp.vs.bed
+        split -n100 /tmp/tmp.vs.bed blast_bed_chunks/nx_tx.
+        '''
+rule run_trans_decoder:
+    input:'blast_bed_chunks/nx_tx.{suff}'
+    output:'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/longest_orfs.pep','blast_fa_chunks/nx_tx.{suff}.fa'
+    shell:
+        '''
+
+        module load bedtools
+        bedtools getfasta -name -fi {refGenome} -bed {input} > blast_fa_chunks/nx_tx.{wildcards.suff}.fa
+        module load TransDecoder
+        cd trdec_dir
+        TransDecoder.LongOrfs -t blast_fa_chunks/nx_tx.{wildcards.suff}.fa
+        '''
+rule run_blast:
+    input: 'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/longest_orfs.pep','blast_fa_chunks/nx_tx.{suff}.fa'
+    output:'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastp.out', 'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastn.out'
+    shell:
+        '''
+        module load blast
+        blastn -query {input[1]} -db /fdb/blastdb/nt  -max_target_seqs 250 -max_hsps 3 -outfmt 6 -num_threads 8 > {output[1]}
+        blastp -query {input[0]} -db /fdb/blastdb/swissprot  -max_target_seqs 250 -max_hsps 3 -outfmt 6 -num_threads 8 > {output[0]}
+        '''
+rule combine_blastp_results:
+    input: expand('trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastp.out',suff=make_chunk_input(''))
+    output:'ref/all_blastp.tsv'
+    shell:
+        '''
+        cat {input} > {output}
+        '''
+rule combine_blastn_results:
+    input: expand('trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastp.out',suff=make_chunk_input(''))
+    output:'ref/all_blastn.tsv'
+    shell:
+        '''
+        cat {input} > {output}
         '''
 
 rule build_salmon_index:
