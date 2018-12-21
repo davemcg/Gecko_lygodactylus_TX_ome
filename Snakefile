@@ -5,7 +5,7 @@ Snakefile for gekko transcfiptome
 
 '''
 import string
-from itertools import combinations_with_replacement
+from itertools import product
 
 
 def readSampleFile(samplefile):
@@ -18,7 +18,7 @@ def readSampleFile(samplefile):
     return(res)
 
 def make_chunk_input(stem):
-    alphbet_pfx=list(combinations_with_replacement(list(string.ascii_lowercase),2))
+    alphbet_pfx=list(product(list(string.ascii_lowercase),list(string.ascii_lowercase)))
     paths=[stem + ''.join(i) for i in alphbet_pfx]
     paths.sort()
     return(paths[0:100])
@@ -128,7 +128,7 @@ rule extract_tx_seqs:
         awk '{{print $1,$4,$5,$10,$6,$7}}' OFS='\t' - |\
         bedtools getfasta -name -fi {refGenome} -bed - -fo {output}
         '''
-rule make_blast_bundles:
+rule make_blast_chunks:
     input: 'ref/gekko_st.gtf'
     output: make_chunk_input('blast_bed_chunks/nx_tx.')
     shell:
@@ -137,7 +137,7 @@ rule make_blast_bundles:
         awk '{{gsub(/\"|\;/,"")}}1' - |\
         grep -v gene_name - |\
         awk '{{print $1,$4,$5,$10,$6,$7}}' OFS='\t' - > /tmp/tmp.vs.bed
-        split -n100 /tmp/tmp.vs.bed blast_bed_chunks/nx_tx.
+        split -n l/100 /tmp/tmp.vs.bed blast_bed_chunks/nx_tx.
         '''
 rule run_trans_decoder:
     input:'blast_bed_chunks/nx_tx.{suff}'
@@ -149,7 +149,7 @@ rule run_trans_decoder:
         bedtools getfasta -name -fi {refGenome} -bed {input} > blast_fa_chunks/nx_tx.{wildcards.suff}.fa
         module load TransDecoder
         cd trdec_dir
-        TransDecoder.LongOrfs -t blast_fa_chunks/nx_tx.{wildcards.suff}.fa
+        TransDecoder.LongOrfs -t ../blast_fa_chunks/nx_tx.{wildcards.suff}.fa
         '''
 rule run_blast:
     input: 'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/longest_orfs.pep','blast_fa_chunks/nx_tx.{suff}.fa'
@@ -168,7 +168,7 @@ rule combine_blastp_results:
         cat {input} > {output}
         '''
 rule combine_blastn_results:
-    input: expand('trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastp.out',suff=make_chunk_input(''))
+    input: expand('trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastn.out',suff=make_chunk_input(''))
     output:'ref/all_blastn.tsv'
     shell:
         '''
