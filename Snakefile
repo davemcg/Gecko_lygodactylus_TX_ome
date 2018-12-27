@@ -33,7 +33,8 @@ refGFF= config['refGFF']
 
 
 rule all:
-    input: 'ref/gekko.combined.gtf', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names),'ref/all_blastn.tsv','ref/all_blastp.tsv'
+    input: 'ref/gekko.combined.gtf', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names), \
+    'ref/all_blastn.tsv','ref/all_blastp.tsv'
     #,'smoothed_filtered_tpms.csv'
 '''
 ****PART 1****  get annotation run alignment
@@ -139,25 +140,44 @@ rule make_blast_chunks:
         awk '{{print $1,$4,$5,$10,$6,$7}}' OFS='\t' - > /tmp/tmp.vs.bed
         split -n l/100 /tmp/tmp.vs.bed blast_bed_chunks/nx_tx.
         '''
-rule run_trans_decoder:
+#occasionally transdecoder won't make the pep file cause the tx's are too short/ no frame is found
+rule extract_seq_blast_chunks:
     input:'blast_bed_chunks/nx_tx.{suff}'
-    output:'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/longest_orfs.pep','blast_fa_chunks/nx_tx.{suff}.fa'
+    output:'blast_fa_chunks/nx_tx.{suff}.fa'
     shell:
         '''
-
         module load bedtools
         bedtools getfasta -name -fi {refGenome} -bed {input} > blast_fa_chunks/nx_tx.{wildcards.suff}.fa
+        '''
+
+rule run_trans_decoder:
+    input:'blast_fa_chunks/nx_tx.{suff}.fa',
+    output:'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/best_orfs.pep'
+    shell:
+        '''
         module load TransDecoder
         cd trdec_dir
-        TransDecoder.LongOrfs -t ../blast_fa_chunks/nx_tx.{wildcards.suff}.fa
+        TransDecoder.LongOrfs -t ../{input}
+        TransDecoder.Predict --single_best_only -t ../{input} || touch nx_tx.{wildcards.suff}.fa.transdecoder.pep && echo {wildcards.suff} >> ../failed_chunks
+        mv nx_tx.{wildcards.suff}.fa.transdecoder.pep   nx_tx.{wildcards.suff}.fa.transdecoder_dir/best_orfs.pep
+        mv nx_tx.{wildcards.suff}.fa.transdecoder.*   nx_tx.{wildcards.suff}.fa.transdecoder_dir/ 2>/dev/null; true
+
         '''
-rule run_blast:
-    input: 'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/longest_orfs.pep','blast_fa_chunks/nx_tx.{suff}.fa'
-    output:'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastp.out', 'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastn.out'
+rule run_blastn:
+    input:'blast_fa_chunks/nx_tx.{suff}.fa'
+    output:'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastn.out'
     shell:
         '''
         module load blast
-        blastn -query {input[1]} -db /fdb/blastdb/nt  -max_target_seqs 250 -max_hsps 3 -outfmt 6 -num_threads 8 > {output[1]}
+        blastn -query {input[0]} -db /fdb/blastdb/nt  -max_target_seqs 250 -max_hsps 3 -outfmt 6 -num_threads 8 > {output[0]}
+        '''
+
+rule run_blastp:
+    input: 'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/best_orfs.pep'
+    output:'trdec_dir/nx_tx.{suff}.fa.transdecoder_dir/blastp.out'
+    shell:
+        '''
+        module load blast
         blastp -query {input[0]} -db /fdb/blastdb/swissprot  -max_target_seqs 250 -max_hsps 3 -outfmt 6 -num_threads 8 > {output[0]}
         '''
 rule combine_blastp_results:
