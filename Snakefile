@@ -5,8 +5,6 @@ Snakefile for gekko transcfiptome
 
 '''
 import string
-from itertools import product
-
 
 def readSampleFile(samplefile):
     # returns a dictionary of dictionaries where first dict key is sample id and second dict key are sample  properties
@@ -17,15 +15,9 @@ def readSampleFile(samplefile):
             res[info[0]]={'path':info[1].split(','),'type':info[2].strip('\n')}
     return(res)
 
-def make_chunk_input(stem):
-    alphbet_pfx=list(product(list(string.ascii_lowercase),list(string.ascii_lowercase)))
-    paths=[stem + ''.join(i) for i in alphbet_pfx]
-    paths.sort()
-    return(paths[0:100])
 
 configfile:'config.yaml'
 sample_dict=readSampleFile(config['sampleFile'])# sampleID:dict{path,paired,metadata}
-#subtissues_SE=["RPE_Stem.Cell.Line","RPE_Cell.Line","Retina_Adult.Tissue","RPE_Fetal.Tissue","Cornea_Adult.Tissue","Cornea_Fetal.Tissue","Cornea_Cell.Line","Retina_Stem.Cell.Line",'body']
 sample_names=list(sample_dict.keys())
 STARindex='ref/STARindex'
 refGenome= config['refGenome']
@@ -34,8 +26,8 @@ refGFF= config['refGFF']
 
 rule all:
     input: 'ref/gekko.combined.gtf', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names), \
-    'ref/all_blastn.tsv','ref/all_blastp.tsv'
-    #,'smoothed_filtered_tpms.csv'
+    'results/all_blastn.tsv','results/all_blastp.tsv', 'results/orf_lengths.csv'
+
 '''
 ****PART 1****  get annotation run alignment
 '''
@@ -104,14 +96,14 @@ rule merge_gtfs_gffcomp:
         '''
 rule merge_gtf_st:
     input: expand('st_out/{sample}.gtf', sample=sample_names ), 'ref/gekko.combined.gtf'
-    output: 'ref/gekko_st.gtf'
+    output: 'results/gekko_st.gtf'
     shell:
         '''
         module load stringtie
         stringtie --merge -G {refGFF} -o {output} {input}
         '''
 rule compare_st_gffcompare:
-    input: 'ref/gekko_st.gtf','ref/gekko.combined.gtf'
+    input: 'results/gekko_st.gtf','ref/gekko.combined.gtf'
     output:'ref/st_gffc_gekko.stats'
     shell:
         '''
@@ -119,15 +111,15 @@ rule compare_st_gffcompare:
         gffcompare -r {refGFF} -o ref/ref/st_gffc_gekko {input}
         '''
 rule extract_tx_seqs:
-    input: 'ref/gekko_st.gtf',refGenome
-    output: 'ref/gekko_tx.fa'
+    input: 'results/gekko_st.gtf',refGenome
+    output: 'results/gekko_tx.fa'
     shell:
         '''
         ./gffread/gffread -w {output[0]} -g {input[1]} {input[0]}
         '''
 
 rule run_trans_decoder:
-    input:'ref/gekko_tx.fa'
+    input:'results/gekko_tx.fa'
     output:'trdec_dir/gekko_tx.fa.transdecoder_dir/best_orfs.pep'
     shell:
         '''
@@ -135,37 +127,40 @@ rule run_trans_decoder:
         cd trdec_dir
         TransDecoder.LongOrfs -t ../{input}
         TransDecoder.Predict --single_best_only -t ../{input}
-        mv gekko_tx.fa.transdecoder.pep   gekko_tx.fa.transdecoder_dir/best_orfs.pep
-        mv gekko_tx.fa.transdecoder.*   gekko_tx.fa.transdecoder_dir/ || true
+        mv gekko_tx.fa.transdecoder.*   ../results/
         '''
 rule run_blastn:
-    input:'ref/gekko_tx.fa'
-    output:'ref/all_blastn.tsv'
+    input:'results/gekko_tx.fa'
+    output:'results/all_blastn.tsv'
     shell:
         '''
         module load blast
         blastn -query {input[0]} -db /fdb/blastdb/nt  -max_target_seqs 250 -max_hsps 3 -outfmt 6 -num_threads 8 > {output[0]}
         '''
-
+rule getFastaLengths:
+    input:'results/best_orfs.pep'
+    output:'results/orf_lengths.csv'
+    shell:
+        '''
+        python3 scripts/getFastaLengths.py {input} {ouput}
+        '''
 rule run_blastp:
-    input: 'trdec_dir/gekko_tx.fa.transdecoder_dir/best_orfs.pep'
-    output:'ref/all_blastp.tsv'
+    input: 'results/best_orfs.pep'
+    output:'results/all_blastp.tsv'
     shell:
         '''
         module load blast
         blastp -query {input[0]} -db /fdb/blastdb/swissprot  -max_target_seqs 250 -max_hsps 3 -outfmt 6 -num_threads 8 > {output[0]}
         '''
 
-
-
 rule build_salmon_index:
-        input: 'ref/gekko_tx.fa'
-        output: 'ref/salmonIndex_gekko'
-        shell:
-            '''
-            module load salmon
-            salmon index -t {input} code -i {output} --type quasi --perfectHash -k 31
-            '''
+    input: 'results/gekko_tx.fa'
+    output: 'results/salmonIndex_gekko'
+    shell:
+        '''
+        module load salmon
+        salmon index -t {input} code -i {output} --type quasi --perfectHash -k 31
+        '''
 
 rule run_salmon:
     input: fastqs = lambda wildcards: sample_dict[wildcards.sample]['path'],
