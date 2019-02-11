@@ -22,11 +22,11 @@ sample_names=list(sample_dict.keys())
 STARindex='ref/STARindex'
 refGenome= config['refGenome']
 refGFF= config['refGFF']
-
+stringtie_gtf='results/gekko_st.gtf'
 
 rule all:
-    input: 'ref/gekko.combined.gtf', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names), \
-    'results/all_blastn.tsv','results/all_blastp.tsv', 'results/orf_lengths.csv'
+    input: 'ref/st_gffc_gekko.stats', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names), \
+    'results/all_blastn.tsv', 'results/all_blastp.tsv', 'ref/STAR_TXidx'
 
 '''
 ****PART 1****  get annotation run alignment
@@ -35,9 +35,7 @@ rule downloadGencode:
     output:refGenome, refGFF
     shell:
         '''
-        wget -O - {config[refGenome_url]} | gunzip -c > {refGenome}.tmp
-        wget -O - {config[refGFF_url]} | gunzip -c > {refGFF}
-        python3 scripts/clean_genome_names.py {refGenome}.tmp {refGenome}
+        bash scripts/downloadGencode.sh {config[refGenome_url]} {config[refGFF_url]} {output}
         '''
 
 rule build_STARindex:
@@ -108,7 +106,7 @@ rule compare_st_gffcompare:
     shell:
         '''
         module load gffcompare
-        gffcompare -r {refGFF} -o ref/ref/st_gffc_gekko {input}
+        gffcompare -r {refGFF} -o ref/st_gffc_gekko {input}
         '''
 rule extract_tx_seqs:
     input: 'results/gekko_st.gtf',refGenome
@@ -118,15 +116,27 @@ rule extract_tx_seqs:
         ./gffread/gffread -w {output[0]} -g {input[1]} {input[0]}
         '''
 
+rule build_STAR_transcriptomic_index:
+    input: 'results/gekko_tx.fa'
+    output:'ref/STAR_TXidx'
+    shell:
+        '''
+        module load STAR
+        mkdir -p {output}
+        STAR --runThreadN 12 --runMode genomeGenerate --genomeDir {output} --genomeFastaFiles {input} --genomeChrBinNbits 9 \
+        --sjdbGTFfile {stringtie_gtf} --sjdbOverhang 100
+        '''
+
 rule run_trans_decoder:
     input:'results/gekko_tx.fa'
-    output:'trdec_dir/gekko_tx.fa.transdecoder_dir/best_orfs.pep'
+    output:'results/best_orfs.pep'
     shell:
         '''
         module load TransDecoder
         cd trdec_dir
         TransDecoder.LongOrfs -t ../{input}
         TransDecoder.Predict --single_best_only -t ../{input}
+        mv gekko_tx.fa.transdecoder.pep best_orfs.pep
         mv gekko_tx.fa.transdecoder.*   ../results/
         '''
 rule run_blastn:
@@ -142,10 +152,10 @@ rule getFastaLengths:
     output:'results/orf_lengths.csv'
     shell:
         '''
-        python3 scripts/getFastaLengths.py {input} {ouput}
+        python3 scripts/getFastaLengths.py {input} {output}
         '''
 rule run_blastp:
-    input: 'results/best_orfs.pep'
+    input: 'results/best_orfs.pep', 'results/orf_lengths.csv'
     output:'results/all_blastp.tsv'
     shell:
         '''
