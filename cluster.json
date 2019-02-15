@@ -65,6 +65,17 @@
 		"error" : "00log/{rule}_{wildcards}.err",
 		"extra" : ""
 	},
+        "align_to_txome_STAR" :
+        {
+                "partition" : "norm",
+                "time" : "24:00:00",
+                "cpus-per-task" : "16",
+                "mem" : "48g",
+                "output"  : "00log/{rule}_{wildcards}.out",
+                "error" : "00log/{rule}_{wildcards}.err",
+                "extra" : ""
+        },
+
 	"sort_bams" :
 	{
                 "partition" : "norm",

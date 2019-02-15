@@ -26,7 +26,7 @@ stringtie_gtf='results/gekko_st.gtf'
 
 rule all:
     input: 'ref/st_gffc_gekko.stats', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names), \
-    'results/all_blastn.tsv', 'results/all_blastp.tsv', 'ref/STAR_TXidx'
+    'results/all_blastn.tsv', 'results/all_blastp.tsv', expand('STARbams_realigned/{samples}/Aligned.out.bam',samples=sample_names)
 
 '''
 ****PART 1****  get annotation run alignment
@@ -76,10 +76,11 @@ rule run_stringtie:
     shell:
         '''
         module load stringtie
-        stringtie {input[0]} -o {output[0]} -p 8 -G {refGFF}
+        stringtie {input[0]} -o {output[0]} -p 8
+
         '''
 '''
----making gtfs
+***PART 1 - Build Transcriptome***
 -gffcompare give good stats but does no filtering, bit st --merge auto filters (using transcript w min 1 tpm in 1 sample)
 -remember to escape braces for non variable use, like awk
 '''
@@ -94,11 +95,13 @@ rule merge_gtfs_gffcomp:
         '''
 rule merge_gtf_st:
     input: expand('st_out/{sample}.gtf', sample=sample_names ), 'ref/gekko.combined.gtf'
-    output: 'results/gekko_st.gtf'
+    output: 'results/gekko_st.gtf','results/gekko_st_TXidx.gtf'
     shell:
         '''
         module load stringtie
-        stringtie --merge -G {refGFF} -o {output} {input}
+        stringtie --merge -G {refGFF} -o {output[0]} {input}
+        module load R
+        Rscript scripts/swapChromforTx.R {output}
         '''
 rule compare_st_gffcompare:
     input: 'results/gekko_st.gtf','ref/gekko.combined.gtf'
@@ -115,30 +118,53 @@ rule extract_tx_seqs:
         '''
         ./gffread/gffread -w {output[0]} -g {input[1]} {input[0]}
         '''
-
-rule build_STAR_transcriptomic_index:
-    input: 'results/gekko_tx.fa'
-    output:'ref/STAR_TXidx'
-    shell:
-        '''
-        module load STAR
-        mkdir -p {output}
-        STAR --runThreadN 12 --runMode genomeGenerate --genomeDir {output} --genomeFastaFiles {input} --genomeChrBinNbits 9 \
-        --sjdbGTFfile {stringtie_gtf} --sjdbOverhang 100
-        '''
-
 rule run_trans_decoder:
     input:'results/gekko_tx.fa'
     output:'results/best_orfs.pep'
     shell:
         '''
         module load TransDecoder
+        mkdir -p trdec_dir
         cd trdec_dir
         TransDecoder.LongOrfs -t ../{input}
         TransDecoder.Predict --single_best_only -t ../{input}
         mv gekko_tx.fa.transdecoder.pep best_orfs.pep
         mv gekko_tx.fa.transdecoder.*   ../results/
         '''
+
+'''
+***PART 2 Evaluate Transcriptome Accuraccy***
+-align fasta to transcriptome and look at coverage of built transcripts
+-blast transcripts aginst known nt, prot
+
+'''
+
+
+rule build_STAR_transcriptomic_index:
+    input: fasta='results/gekko_tx.fa',
+        gtf='results/gekko_st_TXidx.gtf'
+    output:'ref/STAR_TXidx'
+    shell:
+        '''
+        module load STAR
+        mkdir -p {output}
+        STAR --runThreadN 12 --runMode genomeGenerate --genomeDir {output} --genomeFastaFiles {input.fasta} --genomeChrBinNbits 9 \
+        --sjdbGTFfile {input.gtf} --sjdbOverhang 100
+        '''
+
+rule align_to_txome_STAR:
+    input: fastqs=lambda wildcards: sample_dict[wildcards.sample]['path'], index='ref/STAR_TXidx'
+    output:'STARbams_realigned/{sample}/Aligned.out.bam','STARbams_realigned/{sample}/Log.final.out'
+    shell:
+        '''
+        module load STAR
+        out_dir=STARbams_realigned/{wildcards.sample}/
+        mkdir -p $out_dir
+        STAR --runThreadN 8 --genomeDir {input.index} --outSAMstrandField intronMotif \
+            --readFilesCommand gunzip -c --outFileNamePrefix $out_dir \
+            --readFilesIn {input.fastqs} --outSAMtype BAM Unsorted
+        '''
+
 rule run_blastn:
     input:'results/gekko_tx.fa'
     output:'results/all_blastn.tsv'
