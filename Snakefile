@@ -25,7 +25,7 @@ refGFF= config['refGFF']
 stringtie_gtf='results/gekko_st.gtf'
 
 rule all:
-    input: 'ref/st_gffc_gekko.stats', expand('quant_files/{sampleID}/quant.sf',sampleID=sample_names), expand('coverage_files/{samples}.per-base.bed.gz',samples=sample_names)
+    input: 'notebooks/compare_txome_builds.html'
 
 '''
 ****PART 1****  get annotation run alignment
@@ -44,7 +44,7 @@ rule run_trinity:
         module load trinity
         left=$(ls -d fastq_files/* | grep R1_ | tr '\n' ',')
         right=$(ls -d fastq_files/* | grep R2_ | tr '\n' ',')
-        Trinity --seqType fq --CPU 32 --left $left --right $right --max_memory 1500G --trimmomatic
+        Trinity --seqType fq --CPU 32 --left $left --right $right --max_memory 1000G --trimmomatic
         '''
 rule run_trans_decoder:
     input:'trinity_out_dir/Trinity.fasta'
@@ -104,8 +104,7 @@ rule calculate_cov:
         '''
         module load mosdepth
         sample={wildcards.id}
-        build={wildcards.build}
-        mosdepth coverage_files_$build/$sample {input}
+        mosdepth coverage_files/$sample {input}
         '''
 rule build_salmon_index:
     input: 'results/trinity_filtered.fasta'
