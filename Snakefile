@@ -25,7 +25,7 @@ refGFF= config['refGFF']
 stringtie_gtf='results/gekko_st.gtf'
 
 rule all:
-    input: 'notebooks/compare_txome_builds.html'
+    input: 'notebooks/compare_txome_builds.html',expand('re_quant_files/{sample}/quant.sf', sample=sample_names)
 
 '''
 ****PART 1****  get annotation run alignment
@@ -61,7 +61,7 @@ rule cluster_raw_tx:
     output: tab='ref/pep_info.tsv', tmp='ref/tmp.fasta', clust='results/trinity_filtered.fasta'
     shell:
         '''
-        python3 scripts/filterFasta.py {input} {output.tab} {output.tmp}
+        python3 scripts/selectPCtx.py {input} {output.tab} {output.tmp}
         module load cd-hit
         cd-hit-est -i {output.tmp} -o {output.clust}  -c .95 -M 0 -T 0 -d 0
         '''
@@ -112,7 +112,7 @@ rule build_salmon_index:
     shell:
         '''
         module load salmon
-        salmon index -t {input} code -i {output} --type quasi --perfectHash -k 31
+        salmon index -t {input} -i {output} --type quasi --perfectHash -k 31
         '''
 rule run_salmon:
     input: fastqs = lambda wildcards: sample_dict[wildcards.sample]['path'],
@@ -122,16 +122,43 @@ rule run_salmon:
     shell:
         '''
         module load salmon
-        salmon quant -i {input.index} -l A --gcBias --seqBias -p 8 -1 {input.fastqs[0]} -2 {input.fastqs[1]} -o quant_files_{wildcards.build}/{wildcards.sample}
+        salmon quant -i {input.index} -l A --gcBias --seqBias -p 8 -1 {input.fastqs[0]} -2 {input.fastqs[1]} -o quant_files/{wildcards.sample}
 
         '''
-
 rule aggregate_files_make_report:
     input:expand('coverage_files/{id}.per-base.bed.gz', id=sample_names), \
     expand('quant_files/{id}/quant.sf', id=sample_names)
-    output:'notebooks/compare_txome_builds.html'
+    output:'notebooks/compare_txome_builds.html', 'results/filtered_tx_to_gene.tsv'
     shell:
         '''
         module load R
         Rscript ~/scripts/render_rmd.R notebooks/compare_txome_builds.Rmd
+        '''
+rule filter_fasta_for_high_conf_tx:
+    input:infasta='results/trinity_filtered.fasta',  txtab='results/filtered_tx_to_gene.tsv'
+    output:'results/annoted_tx_high_conf.fasta'
+    shell:
+        '''
+        cut -f1 {input.txtab} > /tmp/tx_to_keep.txt
+        python3 scripts/filterFasta.py {input.infasta} /tmp/tx_to_keep.txt {output}
+        '''
+rule rebuild_salmon_index:
+    input:'results/annoted_tx_high_conf.fasta'
+    output:directory('ref/salmonIndex_annoTx')
+    shell:
+        '''
+        module load salmon
+        salmon index -t {input} -i {output} --type quasi --perfectHash -k 31
+        '''
+
+rule requantify_salmon:
+    input: fastqs = lambda wildcards: sample_dict[wildcards.sample]['path'],
+            index='ref/salmonIndex_annoTx'
+            #index= 'ref/salmonIndex_gekko'
+    output: 're_quant_files/{sample}/quant.sf'
+    shell:
+        '''
+        module load salmon
+        salmon quant -i {input.index} -l A --gcBias --seqBias -p 8 -1 {input.fastqs[0]} -2 {input.fastqs[1]} -o quant_files/{wildcards.sample}
+
         '''
